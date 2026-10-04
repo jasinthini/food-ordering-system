@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
+import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -14,7 +14,7 @@ import AdminFoods from "./pages/AdminFoods";
 import AdminUsers from "./pages/AdminUsers";
 import AdminOrders from "./pages/AdminOrders";
 import CustomerDashboard from "./pages/CustomerDashboard";
-
+import AdminCategories from "./pages/AdminCategories";
 
 
 function App() {
@@ -36,7 +36,7 @@ function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/dashboard" element={<CustomerDashboard />} />
-
+        <Route path="/admin/categories" element={<AdminCategories />} />
 
       </Routes>
 

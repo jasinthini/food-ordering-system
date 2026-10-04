@@ -1,48 +1,81 @@
-import { useState } from "react";
 
-const sampleUsers = [
-  {
-    id: 1,
-    name: "John Silva",
-    email: "john@example.com",
-    role: "Customer",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "Admin",
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Nimal Perera",
-    email: "nimal@example.com",
-    role: "Customer",
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Kamal Fernando",
-    email: "kamal@example.com",
-    role: "Customer",
-    status: "Inactive",
-  },
-];
+import { useEffect, useState } from "react";
+import api from "../services/api";
 
 function AdminUsers() {
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filteredUsers = sampleUsers.filter(
+  const loadUsers = async () => {
+    try {
+      const response = await api.get("/users/");
+      console.log("USERS API RESPONSE:", response.data);
+
+      setUsers(response.data.users || response.data || []);
+    } catch (error) {
+      console.error("User loading error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const handleRoleChange = async (user) => {
+    const newRole = user.role === "Admin" ? "Customer" : "Admin";
+
+    const confirmChange = window.confirm(
+      `Change ${user.name}'s role to ${newRole}?`
+    );
+
+    if (!confirmChange) return;
+
+    try {
+      await api.put(`/users/${user.id}/role`, {
+        role: newRole,
+      });
+
+      alert("User role updated successfully!");
+      loadUsers();
+    } catch (error) {
+      console.error("Role update error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to update user role."
+      );
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this user?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/users/${id}`);
+
+      alert("User deleted successfully!");
+      loadUsers();
+    } catch (error) {
+      console.error("User delete error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to delete user."
+      );
+    }
+  };
+
+  const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
+      user.name?.toLowerCase().includes(search.toLowerCase()) ||
+      user.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <main className="admin-users-page">
-
       <section className="admin-users-header">
         <div className="container">
           <span className="small-title">USER MANAGEMENT</span>
@@ -87,66 +120,72 @@ function AdminUsers() {
               <div>Actions</div>
             </div>
 
-            {filteredUsers.map((user) => (
-              <div className="admin-user-row" key={user.id}>
+            {loading ? (
+              <div className="admin-user-empty">
+                <h3>Loading users...</h3>
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <div className="admin-user-row" key={user.id}>
 
-                <div className="admin-user-info">
+                  <div className="admin-user-info">
 
-                  <div className="admin-user-avatar">
-                    {user.name.charAt(0)}
+                    <div className="admin-user-avatar">
+                      {user.name?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+
+                    <div>
+                      <strong>{user.name}</strong>
+                      <span>User ID: #{user.id}</span>
+                    </div>
+
+                  </div>
+
+                  <div className="admin-user-email">
+                    {user.email}
                   </div>
 
                   <div>
-                    <strong>{user.name}</strong>
-                    <span>User ID: #{user.id}</span>
+                    <span
+                      className={
+                        user.role === "Admin"
+                          ? "user-role admin"
+                          : "user-role customer"
+                      }
+                    >
+                      {user.role}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="user-status active">
+                      Active
+                    </span>
+                  </div>
+
+                  <div className="admin-user-actions">
+
+                    <button
+                      className="edit-user-btn"
+                      onClick={() => handleRoleChange(user)}
+                    >
+                      ✏️ Change Role
+                    </button>
+
+                    <button
+                      className="delete-user-btn"
+                      onClick={() => handleDelete(user.id)}
+                    >
+                      🗑️ Delete
+                    </button>
+
                   </div>
 
                 </div>
+              ))
+            )}
 
-                <div className="admin-user-email">
-                  {user.email}
-                </div>
-
-                <div>
-                  <span
-                    className={
-                      user.role === "Admin"
-                        ? "user-role admin"
-                        : "user-role customer"
-                    }
-                  >
-                    {user.role}
-                  </span>
-                </div>
-
-                <div>
-                  <span
-                    className={
-                      user.status === "Active"
-                        ? "user-status active"
-                        : "user-status inactive"
-                    }
-                  >
-                    {user.status}
-                  </span>
-                </div>
-
-                <div className="admin-user-actions">
-
-                  <button className="edit-user-btn">
-                    ✏️ Edit
-                  </button>
-
-                  <button className="delete-user-btn">
-                    🗑️ Delete
-                  </button>
-
-                </div>
-
-              </div>
-            ))}
-
-            {filteredUsers.length === 0 && (
+            {!loading && filteredUsers.length === 0 && (
               <div className="admin-user-empty">
                 <span>👥</span>
                 <h3>No users found</h3>
@@ -158,9 +197,9 @@ function AdminUsers() {
 
         </div>
       </section>
-
     </main>
   );
 }
 
 export default AdminUsers;
+

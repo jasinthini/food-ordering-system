@@ -1,9 +1,13 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import api from "../services/api";
 
 function Checkout() {
+  const navigate = useNavigate();
+
   const [cartItems, setCartItems] = useState([]);
+  const [placingOrder, setPlacingOrder] = useState(false);
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
@@ -18,46 +22,59 @@ function Checkout() {
   const deliveryFee = cartItems.length > 0 ? 250 : 0;
   const total = subtotal + deliveryFee;
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (cartItems.length === 0) {
       alert("Your cart is empty!");
       return;
     }
 
-    const existingOrders =
-      JSON.parse(localStorage.getItem("orders")) || [];
+    const userId = localStorage.getItem("user_id");
 
-    const newOrder = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-      items: cartItems
-        .map((item) => `${item.name} × ${item.quantity}`)
-        .join(", "),
-      total: total,
-      status: "Pending",
-    };
+    if (!userId) {
+      alert("Please login before placing an order.");
+      navigate("/login");
+      return;
+    }
 
-    const updatedOrders = [newOrder, ...existingOrders];
+    try {
+      setPlacingOrder(true);
 
-    localStorage.setItem(
-      "orders",
-      JSON.stringify(updatedOrders)
-    );
+      // 1. Add/update frontend cart items in backend cart
+      for (const item of cartItems) {
+        await api.post("/cart/", {
+          user_id: Number(userId),
+          food_id: Number(item.id),
+          quantity: Number(item.quantity),
+        });
+      }
 
-    localStorage.removeItem("cart");
+      // 2. Create order from backend cart
+      await api.post("/orders/", {
+        user_id: Number(userId),
+      });
 
-    alert("Order placed successfully! 🎉");
+      // 3. Clear frontend cart
+      localStorage.removeItem("cart");
 
-    window.location.href = "/orders";
+      // 4. Success
+      alert("Order placed successfully! 🎉");
+
+      navigate("/orders");
+    } catch (error) {
+      console.error("Order placement error:", error);
+
+      const message =
+        error.response?.data?.detail ||
+        "Failed to place order. Please try again.";
+
+      alert(message);
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   return (
     <main className="checkout-page">
-
       <section className="checkout-header">
         <div className="container">
           <span className="small-title">CHECKOUT</span>
@@ -68,15 +85,11 @@ function Checkout() {
 
       <section className="section">
         <div className="container checkout-layout">
-
-          {/* Customer Details */}
           <div className="checkout-form">
-
             <div className="checkout-card">
               <h2>👤 Customer Details</h2>
 
               <div className="form-row">
-
                 <div className="form-group">
                   <label>Full Name</label>
                   <input
@@ -94,7 +107,6 @@ function Checkout() {
                     placeholder="Enter your phone number"
                   />
                 </div>
-
               </div>
 
               <div className="form-group">
@@ -114,10 +126,8 @@ function Checkout() {
                   rows="4"
                 ></textarea>
               </div>
-
             </div>
 
-            {/* Payment */}
             <div className="checkout-card">
               <h2>💳 Payment Method</h2>
 
@@ -127,7 +137,6 @@ function Checkout() {
                   name="payment"
                   defaultChecked
                 />
-
                 <div>
                   <strong>Cash on Delivery</strong>
                   <span>Pay when your order arrives.</span>
@@ -135,36 +144,24 @@ function Checkout() {
               </label>
 
               <label className="payment-option">
-                <input
-                  type="radio"
-                  name="payment"
-                />
-
+                <input type="radio" name="payment" />
                 <div>
                   <strong>Card Payment</strong>
                   <span>Pay securely using your card.</span>
                 </div>
               </label>
-
             </div>
-
           </div>
 
-          {/* Order Summary */}
           <div className="checkout-summary">
-
             <div className="checkout-card">
               <h2>🛒 Order Summary</h2>
 
               {cartItems.length === 0 ? (
                 <div className="empty-box">
                   <span>🛒</span>
-
                   <h3>Your cart is empty</h3>
-
-                  <p>
-                    Add some food before checkout.
-                  </p>
+                  <p>Add some food before checkout.</p>
 
                   <Link
                     to="/foods"
@@ -186,8 +183,7 @@ function Checkout() {
                         </strong>
 
                         <span>
-                          Rs.{" "}
-                          {item.price.toLocaleString()} each
+                          Rs. {Number(item.price).toLocaleString()} each
                         </span>
                       </div>
 
@@ -204,7 +200,6 @@ function Checkout() {
 
                   <div className="summary-row">
                     <span>Subtotal</span>
-
                     <strong>
                       Rs. {subtotal.toLocaleString()}
                     </strong>
@@ -212,7 +207,6 @@ function Checkout() {
 
                   <div className="summary-row">
                     <span>Delivery Fee</span>
-
                     <strong>
                       Rs. {deliveryFee.toLocaleString()}
                     </strong>
@@ -222,7 +216,6 @@ function Checkout() {
 
                   <div className="summary-total">
                     <span>Total</span>
-
                     <strong>
                       Rs. {total.toLocaleString()}
                     </strong>
@@ -231,8 +224,11 @@ function Checkout() {
                   <button
                     className="place-order-btn"
                     onClick={handlePlaceOrder}
+                    disabled={placingOrder}
                   >
-                    Place Order →
+                    {placingOrder
+                      ? "Placing Order..."
+                      : "Place Order →"}
                   </button>
 
                   <Link
@@ -243,7 +239,6 @@ function Checkout() {
                   </Link>
                 </>
               )}
-
             </div>
 
             <div className="checkout-safe">
@@ -253,12 +248,9 @@ function Checkout() {
                 Your order information is securely handled.
               </p>
             </div>
-
           </div>
-
         </div>
       </section>
-
     </main>
   );
 }

@@ -1,48 +1,64 @@
-import { useState } from "react";
 
-const sampleOrders = [
-  {
-    id: 1008,
-    customer: "John Silva",
-    items: "Classic Burger × 2",
-    total: 1700,
-    status: "Delivered",
-    date: "02 Oct 2026",
-  },
-  {
-    id: 1007,
-    customer: "Nimal Perera",
-    items: "Cheese Pizza × 1",
-    total: 1200,
-    status: "Preparing",
-    date: "02 Oct 2026",
-  },
-  {
-    id: 1006,
-    customer: "Kamal Fernando",
-    items: "Chicken Noodles × 2",
-    total: 1900,
-    status: "Pending",
-    date: "01 Oct 2026",
-  },
-  {
-    id: 1005,
-    customer: "Sarah Perera",
-    items: "Pizza × 1, Fresh Juice × 2",
-    total: 2100,
-    status: "Delivered",
-    date: "01 Oct 2026",
-  },
-];
+import { useEffect, useState } from "react";
+import api from "../services/api";
 
 function AdminOrders() {
+  const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
 
-  const filteredOrders = sampleOrders.filter((order) => {
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+
+      // Get all users
+      const usersResponse = await api.get("/users/");
+      const users = usersResponse.data.users || usersResponse.data || [];
+
+      // Get orders for each user
+      const orderRequests = users.map(async (user) => {
+        try {
+          const response = await api.get(`/orders/${user.id}`);
+
+          const userOrders = response.data.orders || [];
+
+          return userOrders.map((order) => ({
+            id: order.id,
+            customer: user.name,
+            items: "View order details",
+            total: order.total_amount,
+            status: order.status,
+            date: "N/A",
+            userId: user.id,
+          }));
+        } catch (error) {
+          console.error(`Orders loading error for user ${user.id}:`, error);
+          return [];
+        }
+      });
+
+      const orderResults = await Promise.all(orderRequests);
+
+      const allOrders = orderResults.flat();
+
+      setOrders(allOrders);
+    } catch (error) {
+      console.error("Admin orders loading error:", error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      order.customer.toLowerCase().includes(search.toLowerCase()) ||
-      order.id.toString().includes(search);
+      order.customer?.toLowerCase().includes(search.toLowerCase()) ||
+      order.id?.toString().includes(search);
 
     const matchesStatus =
       statusFilter === "All" || order.status === statusFilter;
@@ -50,9 +66,63 @@ function AdminOrders() {
     return matchesSearch && matchesStatus;
   });
 
+
+  
+const handleStatusChange = async (orderId, newStatus) => {
+  try {
+    await api.put(`/orders/${orderId}/status`, null, {
+      params: {
+        status: newStatus,
+      },
+    });
+
+    alert("Order status updated successfully!");
+
+    loadOrders();
+  } catch (error) {
+    console.error("Status update error:", error);
+    alert(
+      error.response?.data?.detail ||
+        "Failed to update order status."
+    );
+  }
+};
+
+
+
+  const handleViewOrder = async (orderId) => {
+    try {
+      const response = await api.get(`/orders/details/${orderId}`);
+
+      console.log("ORDER DETAILS:", response.data);
+
+      const order = response.data;
+
+      const itemsText = order.items
+        .map(
+          (item) =>
+            `Food ID: ${item.food_id} | Quantity: ${item.quantity} | Price: Rs. ${item.price}`
+        )
+        .join("\n");
+
+      alert(
+        `Order #${order.order_id}\n\n` +
+          `User ID: ${order.user_id}\n` +
+          `Total: Rs. ${order.total_amount}\n` +
+          `Status: ${order.status}\n\n` +
+          `Items:\n${itemsText}`
+      );
+    } catch (error) {
+      console.error("Order details error:", error);
+      alert(
+        error.response?.data?.detail ||
+          "Failed to load order details."
+      );
+    }
+  };
+
   return (
     <main className="admin-orders-page">
-
       <section className="admin-orders-header">
         <div className="container">
           <span className="small-title">ORDER MANAGEMENT</span>
@@ -88,7 +158,9 @@ function AdminOrders() {
               <option value="All">All Orders</option>
               <option value="Pending">Pending</option>
               <option value="Preparing">Preparing</option>
+              <option value="Confirmed">Confirmed</option>
               <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
 
           </div>
@@ -105,54 +177,82 @@ function AdminOrders() {
               <div>Action</div>
             </div>
 
-            {filteredOrders.map((order) => (
-              <div className="admin-order-row" key={order.id}>
-
-                <div className="admin-order-id">
-                  <strong>#{order.id}</strong>
-                </div>
-
-                <div className="admin-order-customer">
-                  <div className="admin-order-avatar">
-                    {order.customer.charAt(0)}
-                  </div>
-                  <span>{order.customer}</span>
-                </div>
-
-                <div className="admin-order-items">
-                  {order.items}
-                </div>
-
-                <div className="admin-order-total">
-                  Rs. {order.total.toLocaleString()}
-                </div>
-
-                <div>
-                  <span
-                    className={`admin-order-status ${order.status.toLowerCase()}`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-
-                <div className="admin-order-date">
-                  {order.date}
-                </div>
-
-                <div>
-                  <button className="admin-order-view-btn">
-                    View →
-                  </button>
-                </div>
-
+            {loading ? (
+              <div className="admin-order-empty">
+                <span>📦</span>
+                <h3>Loading orders...</h3>
+                <p>Please wait while orders are loaded.</p>
               </div>
-            ))}
+            ) : (
+              filteredOrders.map((order) => (
+                <div
+                  className="admin-order-row"
+                  key={order.id}
+                >
 
-            {filteredOrders.length === 0 && (
+                  <div className="admin-order-id">
+                    <strong>#{order.id}</strong>
+                  </div>
+
+                  <div className="admin-order-customer">
+                    <div className="admin-order-avatar">
+                      {order.customer?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+
+                    <span>{order.customer}</span>
+                  </div>
+
+                  <div className="admin-order-items">
+                    {order.items}
+                  </div>
+
+                  <div className="admin-order-total">
+                    Rs. {Number(order.total || 0).toLocaleString()}
+                  </div>
+
+                  ```jsx
+<div>
+  <select
+    className="order-status-filter"
+    value={order.status}
+    onChange={(e) =>
+      handleStatusChange(order.id, e.target.value)
+    }
+  >
+    <option value="Pending">Pending</option>
+    <option value="Preparing">Preparing</option>
+    <option value="Confirmed">Confirmed</option>
+    <option value="Delivered">Delivered</option>
+    <option value="Cancelled">Cancelled</option>
+  </select>
+</div>
+```
+
+
+                  <div className="admin-order-date">
+                    {order.date}
+                  </div>
+
+                  <div>
+                    <button
+                      className="admin-order-view-btn"
+                      onClick={() => handleViewOrder(order.id)}
+                    >
+                      View →
+                    </button>
+                  </div>
+
+                </div>
+              ))
+            )}
+
+            {!loading && filteredOrders.length === 0 && (
               <div className="admin-order-empty">
                 <span>📦</span>
                 <h3>No orders found</h3>
-                <p>Try changing your search or status filter.</p>
+                <p>
+                  Try changing your search or status filter.
+                </p>
               </div>
             )}
 
@@ -160,9 +260,9 @@ function AdminOrders() {
 
         </div>
       </section>
-
     </main>
   );
 }
 
 export default AdminOrders;
+

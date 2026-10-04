@@ -1,105 +1,195 @@
-import { useState } from "react";
 
-const sampleCategories = [
-  { id: 1, name: "Burgers", description: "Juicy and delicious burgers", foods: 14 },
-  { id: 2, name: "Pizza", description: "Freshly baked pizzas", foods: 10 },
-  { id: 3, name: "Noodles", description: "Hot and tasty noodles", foods: 8 },
-  { id: 4, name: "Drinks", description: "Cool and refreshing drinks", foods: 9 },
-  { id: 5, name: "Desserts", description: "Sweet treats for everyone", foods: 7 },
-];
+import { useEffect, useState } from "react";
+import api from "../services/api";
 
 function AdminCategories() {
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filteredCategories = sampleCategories.filter((category) =>
+  const [showForm, setShowForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  const loadCategories = async () => {
+    try {
+      const response = await api.get("/categories/");
+      console.log("CATEGORY API RESPONSE:", response.data);
+      setCategories(response.data.categories || []);
+    } catch (error) {
+      console.error("Category loading error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setEditingCategory(null);
+    setShowForm(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!name.trim()) {
+      alert("Please enter category name.");
+      return;
+    }
+
+    const categoryData = {
+      name: name.trim(),
+      description: description.trim() || null,
+    };
+
+    try {
+      if (editingCategory) {
+        await api.put(`/categories/${editingCategory.id}`, categoryData);
+        alert("Category updated successfully!");
+      } else {
+        await api.post("/categories/", categoryData);
+        alert("Category added successfully!");
+      }
+
+      resetForm();
+      loadCategories();
+    } catch (error) {
+      console.error("Category save error:", error);
+      alert(error.response?.data?.detail || "Failed to save category.");
+    }
+  };
+
+  const handleEdit = (category) => {
+    setEditingCategory(category);
+    setName(category.name || "");
+    setDescription(category.description || "");
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this category?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/categories/${id}`);
+      alert("Category deleted successfully!");
+      loadCategories();
+    } catch (error) {
+      console.error("Category delete error:", error);
+      alert(error.response?.data?.detail || "Failed to delete category.");
+    }
+  };
+
+  const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <main className="admin-categories-page">
-
-      <section className="admin-categories-header">
-        <div className="container">
-          <span className="small-title">CATEGORY MANAGEMENT</span>
-          <h1>Manage Categories 📂</h1>
-          <p>
-            Organize your food items into clear and easy-to-browse categories.
-          </p>
+      <div className="admin-page-header">
+        <div>
+          <h1>Categories</h1>
+          <p>Manage your food categories</p>
         </div>
-      </section>
 
-      <section className="section">
-        <div className="container">
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            if (showForm) {
+              resetForm();
+            } else {
+              setShowForm(true);
+            }
+          }}
+        >
+          {showForm ? "Close" : "+ Add Category"}
+        </button>
+      </div>
 
-          <div className="admin-category-toolbar">
-
-            <div className="admin-category-search">
-              🔍
-              <input
-                type="text"
-                placeholder="Search categories..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            <button className="add-category-btn">
-              + Add Category
-            </button>
-
+      {showForm && (
+        <form onSubmit={handleSubmit} className="admin-form">
+          <div className="form-group">
+            <label>Category Name</label>
+            <input
+              type="text"
+              className="form-control"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter category name"
+            />
           </div>
 
-          <div className="admin-category-grid">
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              className="form-control"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter description"
+            />
+          </div>
 
-            {filteredCategories.map((category) => (
-              <div className="admin-category-card" key={category.id}>
+          <button type="submit" className="btn btn-primary">
+            {editingCategory ? "Update Category" : "Add Category"}
+          </button>
+        </form>
+      )}
 
-                <div className="admin-category-icon">
-                  {category.name === "Burgers" && "🍔"}
-                  {category.name === "Pizza" && "🍕"}
-                  {category.name === "Noodles" && "🍜"}
-                  {category.name === "Drinks" && "🥤"}
-                  {category.name === "Desserts" && "🍰"}
-                </div>
+      <div className="admin-toolbar">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search categories..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
-                <div className="admin-category-content">
-                  <span>Category #{category.id}</span>
-                  <h2>{category.name}</h2>
-                  <p>{category.description}</p>
-                </div>
+      {loading ? (
+        <p>Loading categories...</p>
+      ) : filteredCategories.length === 0 ? (
+        <p>No categories found.</p>
+      ) : (
+        <div className="admin-categories-grid">
+          {filteredCategories.map((category) => (
+            <div className="admin-category-card" key={category.id}>
+              <h3>{category.name}</h3>
 
-                <div className="admin-category-footer">
-                  <strong>{category.foods} Foods</strong>
+              <p>{category.description || "No description"}</p>
 
-                  <div className="admin-category-actions">
-                    <button className="edit-category-btn">
-                      ✏️
-                    </button>
+              <div>
+                <button
+                  className="btn btn-light"
+                  onClick={() => handleEdit(category)}
+                >
+                  Edit
+                </button>
 
-                    <button className="delete-category-btn">
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleDelete(category.id)}
+                >
+                  Delete
+                </button>
               </div>
-            ))}
-
-          </div>
-
-          {filteredCategories.length === 0 && (
-            <div className="admin-category-empty">
-              <span>📂</span>
-              <h3>No categories found</h3>
-              <p>Try searching with another category name.</p>
             </div>
-          )}
-
+          ))}
         </div>
-      </section>
-
+      )}
     </main>
   );
 }
 
 export default AdminCategories;
+

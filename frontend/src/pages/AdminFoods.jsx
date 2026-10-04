@@ -8,6 +8,7 @@ function AdminFoods() {
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingFood, setEditingFood] = useState(null);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -36,7 +37,18 @@ function AdminFoods() {
     loadFoods();
   }, [search]);
 
-  const handleAddFood = async (e) => {
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setPrice("");
+    setImageUrl("");
+    setCategoryId("");
+    setIsAvailable(true);
+    setEditingFood(null);
+    setShowForm(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!name || !price || !categoryId) {
@@ -44,36 +56,52 @@ function AdminFoods() {
       return;
     }
 
+    const foodData = {
+      name,
+      description: description || null,
+      price: Number(price),
+      image_url: imageUrl || null,
+      is_available: isAvailable,
+      category_id: Number(categoryId),
+    };
+
     try {
-      await api.post("/foods/", {
-        name: name,
-        description: description || null,
-        price: Number(price),
-        image_url: imageUrl || null,
-        is_available: isAvailable,
-        category_id: Number(categoryId),
-      });
+      if (editingFood) {
+        await api.put(`/foods/${editingFood.id}`, foodData);
+        alert("Food updated successfully! 🎉");
+      } else {
+        await api.post("/foods/", foodData);
+        alert("Food added successfully! 🎉");
+      }
 
-      alert("Food added successfully! 🎉");
-
-      setName("");
-      setDescription("");
-      setPrice("");
-      setImageUrl("");
-      setCategoryId("");
-      setIsAvailable(true);
-
-      setShowForm(false);
-
+      resetForm();
       loadFoods();
     } catch (error) {
-      console.error("Add food error:", error);
+      console.error("Food save error:", error);
 
       alert(
         error.response?.data?.detail ||
-          "Failed to add food."
+          "Failed to save food."
       );
     }
+  };
+
+  const handleEdit = (food) => {
+    setEditingFood(food);
+
+    setName(food.name || "");
+    setDescription(food.description || "");
+    setPrice(food.price || "");
+    setImageUrl(food.image_url || "");
+    setCategoryId(food.category_id || "");
+    setIsAvailable(food.is_available ?? true);
+
+    setShowForm(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const handleDelete = async (id) => {
@@ -86,10 +114,12 @@ function AdminFoods() {
     try {
       await api.delete(`/foods/${id}`);
 
-      alert("Food deleted successfully!");
+      alert("Food deleted successfully! 🗑️");
 
       loadFoods();
     } catch (error) {
+      console.error("Delete food error:", error);
+
       alert(
         error.response?.data?.detail ||
           "Failed to delete food."
@@ -102,12 +132,15 @@ function AdminFoods() {
 
       <section className="admin-foods-header">
         <div className="container">
-          <span className="small-title">FOOD MANAGEMENT</span>
+          <span className="small-title">
+            FOOD MANAGEMENT
+          </span>
 
           <h1>Manage Foods 🍔</h1>
 
           <p>
-            Add, update and manage the food items available in your restaurant.
+            Add, update and manage the food items available
+            in your restaurant.
           </p>
         </div>
       </section>
@@ -124,27 +157,46 @@ function AdminFoods() {
                 type="text"
                 placeholder="Search food items..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) =>
+                  setSearch(e.target.value)
+                }
               />
             </div>
 
             <button
               className="add-food-btn"
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => {
+                if (showForm) {
+                  resetForm();
+                } else {
+                  setEditingFood(null);
+                  setShowForm(true);
+                }
+              }}
             >
-              + Add New Food
+              {showForm
+                ? "✕ Close Form"
+                : "+ Add New Food"}
             </button>
 
           </div>
 
           {showForm && (
-            <div className="admin-foods-card" style={{ padding: "25px", marginBottom: "25px" }}>
+            <div
+              className="admin-foods-card"
+              style={{
+                padding: "25px",
+                marginBottom: "25px",
+              }}
+            >
 
               <h2 style={{ marginBottom: "20px" }}>
-                Add New Food
+                {editingFood
+                  ? "Edit Food"
+                  : "Add New Food"}
               </h2>
 
-              <form onSubmit={handleAddFood}>
+              <form onSubmit={handleSubmit}>
 
                 <div className="form-group">
                   <label>Food Name</label>
@@ -154,7 +206,9 @@ function AdminFoods() {
                     className="form-control"
                     placeholder="Enter food name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) =>
+                      setName(e.target.value)
+                    }
                     required
                   />
                 </div>
@@ -166,7 +220,9 @@ function AdminFoods() {
                     className="form-control"
                     placeholder="Enter food description"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) =>
+                      setDescription(e.target.value)
+                    }
                     rows="3"
                   />
                 </div>
@@ -179,7 +235,9 @@ function AdminFoods() {
                     className="form-control"
                     placeholder="Enter price"
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    onChange={(e) =>
+                      setPrice(e.target.value)
+                    }
                     min="1"
                     required
                   />
@@ -193,7 +251,9 @@ function AdminFoods() {
                     className="form-control"
                     placeholder="Enter image URL"
                     value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                    onChange={(e) =>
+                      setImageUrl(e.target.value)
+                    }
                   />
                 </div>
 
@@ -205,7 +265,9 @@ function AdminFoods() {
                     className="form-control"
                     placeholder="Example: 1"
                     value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
+                    onChange={(e) =>
+                      setCategoryId(e.target.value)
+                    }
                     min="1"
                     required
                   />
@@ -217,7 +279,9 @@ function AdminFoods() {
                       type="checkbox"
                       checked={isAvailable}
                       onChange={(e) =>
-                        setIsAvailable(e.target.checked)
+                        setIsAvailable(
+                          e.target.checked
+                        )
                       }
                     />{" "}
                     Available
@@ -228,14 +292,16 @@ function AdminFoods() {
                   type="submit"
                   className="btn btn-primary"
                 >
-                  Add Food
+                  {editingFood
+                    ? "Update Food"
+                    : "Add Food"}
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-light"
                   style={{ marginLeft: "10px" }}
-                  onClick={() => setShowForm(false)}
+                  onClick={resetForm}
                 >
                   Cancel
                 </button>
@@ -261,7 +327,10 @@ function AdminFoods() {
               </div>
             ) : (
               foods.map((food) => (
-                <div className="admin-food-row" key={food.id}>
+                <div
+                  className="admin-food-row"
+                  key={food.id}
+                >
 
                   <div className="admin-food-name">
 
@@ -271,6 +340,7 @@ function AdminFoods() {
 
                     <div>
                       <strong>{food.name}</strong>
+
                       <span>
                         Food ID: #{food.id}
                       </span>
@@ -283,10 +353,12 @@ function AdminFoods() {
                   </div>
 
                   <div className="admin-food-price">
-                    Rs. {Number(food.price).toLocaleString()}
+                    Rs.{" "}
+                    {Number(food.price).toLocaleString()}
                   </div>
 
                   <div>
+
                     <span
                       className={
                         food.is_available
@@ -298,17 +370,25 @@ function AdminFoods() {
                         ? "Available"
                         : "Unavailable"}
                     </span>
+
                   </div>
 
                   <div className="admin-food-actions">
 
-                    <button className="edit-food-btn">
+                    <button
+                      className="edit-food-btn"
+                      onClick={() =>
+                        handleEdit(food)
+                      }
+                    >
                       ✏️ Edit
                     </button>
 
                     <button
                       className="delete-food-btn"
-                      onClick={() => handleDelete(food.id)}
+                      onClick={() =>
+                        handleDelete(food.id)
+                      }
                     >
                       🗑️ Delete
                     </button>
@@ -327,7 +407,8 @@ function AdminFoods() {
                 <h3>No food items found</h3>
 
                 <p>
-                  There are no foods available in the database.
+                  There are no foods available in the
+                  database.
                 </p>
 
               </div>
