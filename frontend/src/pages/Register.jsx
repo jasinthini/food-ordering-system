@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 
 function Register() {
@@ -19,6 +20,7 @@ function Register() {
       });
 
       alert(response.data.message);
+
       setName("");
       setEmail("");
       setPassword("");
@@ -29,47 +31,108 @@ function Register() {
   };
 
   return (
-    <div>
-      <h1>Create Account</h1>
+    <main className="auth-page">
+      <div className="auth-container register-container">
 
-      <form onSubmit={handleRegister}>
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="auth-image">
+          <img
+            src="https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=85"
+            alt="Fresh food"
+          />
 
-        <br /><br />
+          <div className="auth-image-content">
+            <span>🥗</span>
+            <h2>Fresh choices. Happy moments.</h2>
+            <p>
+              Create your account and discover delicious food made for every
+              craving.
+            </p>
+          </div>
+        </div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="auth-form-section">
+          <div className="auth-form-box">
 
-        <br /><br />
+            <div className="auth-logo">
+              🍴 <span>Foodie</span>
+            </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+            <h1>Create Account</h1>
 
-        <br /><br />
+            <p className="auth-subtitle">
+              Join Foodie and start ordering your favourite meals.
+            </p>
 
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="Customer">Customer</option>
-          <option value="Admin">Admin</option>
-        </select>
+            <form onSubmit={handleRegister}>
 
-        <br /><br />
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter your full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
 
-        <button type="submit">Register</button>
-      </form>
-    </div>
+              <div className="form-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Account Type</label>
+                <select
+                  className="form-control"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                >
+                  <option value="Customer">Customer</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+
+              <button type="submit" className="auth-submit">
+                Create Account →
+              </button>
+
+            </form>
+
+            <div className="auth-divider">
+              <span>OR</span>
+            </div>
+
+            <p className="auth-footer">
+              Already have an account?{" "}
+              <Link to="/login">Login here</Link>
+            </p>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
   );
 }
 
