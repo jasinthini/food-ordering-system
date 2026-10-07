@@ -7,6 +7,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Railway "mysql://" nu tharum, SQLAlchemy ku "mysql+pymysql://" venum
+if DATABASE_URL and DATABASE_URL.startswith("mysql://"):
+    DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
+
 engine = create_engine(DATABASE_URL, echo=True)
 
 SessionLocal = sessionmaker(
